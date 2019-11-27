@@ -1,16 +1,8 @@
 # Oh-My-Posh default settings
-function Get-ThemesLocation {
-    $folderName = "PoshThemes"
-    if ($PROFILE) {
-        return (Join-Path (Split-Path -Parent $PROFILE) $folderName)
-    }
-    return "~\${$folderName}"
-}
-
 $global:ThemeSettings = New-Object -TypeName PSObject -Property @{
     CurrentUser          = [System.Environment]::UserName
     CurrentThemeLocation = "$PSScriptRoot\Themes\Agnoster.psm1"
-    MyThemesLocation     = Get-ThemesLocation
+    MyThemesLocation     = Get-UserThemesLocation
     ErrorCount           = 0
     GitSymbols           = @{
         BranchSymbol                  = [char]::ConvertFromUtf32(0xE0A0)
@@ -67,8 +59,8 @@ $global:ThemeSettings = New-Object -TypeName PSObject -Property @{
         VirtualEnvForegroundColor               = [ConsoleColor]::White
         VirtualEnvBackgroundColor               = [ConsoleColor]::Red
     }
-    Options = @{
-        ConsoleTitle = $true
+    Options              = @{
+        ConsoleTitle  = $true
         OriginSymbols = $false
     }
 }

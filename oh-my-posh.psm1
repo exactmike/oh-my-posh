@@ -1,14 +1,15 @@
 #requires -Version 2 -Modules posh-git
-
-. "$PSScriptRoot\defaults.ps1"
-. "$PSScriptRoot\Helpers\PoshGit.ps1"
-. "$PSScriptRoot\Helpers\Prompt.ps1"
-
 <#
         .SYNOPSIS
         Generates the prompt before each line in the console
 #>
-function Set-Prompt {
+#Module Variables
+$script:DefaultThemesLocation = Join-Path -Path $PSScriptRoot -ChildPath 'Themes'
+$script:UserThemesLocation = $null
+
+#Functions
+function Set-Prompt
+{
     Import-Module $sl.CurrentThemeLocation -Force
 
     [ScriptBlock]$Prompt = {
@@ -16,7 +17,8 @@ function Set-Prompt {
         $sl.ErrorCount = $global:error.Count
 
         #Start the vanilla posh-git when in a vanilla window, else: go nuts
-        if(Test-IsVanillaWindow) {
+        if (Test-IsVanillaWindow)
+        {
             Write-Host -Object ($pwd.ProviderPath) -NoNewline
             Write-VcsStatus
         }
@@ -24,11 +26,13 @@ function Set-Prompt {
         Reset-CursorPosition
         $prompt = (Write-Theme -lastCommandFailed $lastCommandFailed)
 
-        if($sl.Options.ConsoleTitle) {
+        if ($sl.Options.ConsoleTitle)
+        {
             $location = Get-Location
             $folder = (Get-Item $location.Path).Name
             $prompt += "$([char]27)]2;$($folder)$([char]7)"
-            if ($location.Provider.Name -eq "FileSystem") {
+            if ($location.Provider.Name -eq "FileSystem")
+            {
                 $prompt += "$([char]27)]9;9;`"$($location.Path)`"$([char]7)"
             }
         }
@@ -39,7 +43,8 @@ function Set-Prompt {
     Set-Item -Path Function:prompt -Value $Prompt -Force
 }
 
-function global:Write-WithPrompt() {
+function Write-WithPrompt
+{
     param(
         [string]
         $command
@@ -48,7 +53,8 @@ function global:Write-WithPrompt() {
     $lastCommandFailed = $global:error.Count -gt $sl.ErrorCount
     $sl.ErrorCount = $global:error.Count
 
-    if(Test-IsVanillaWindow) {
+    if (Test-IsVanillaWindow)
+    {
         Write-ClassicPrompt -command $command
         return
     }
@@ -56,7 +62,8 @@ function global:Write-WithPrompt() {
     Write-Theme -lastCommandFailed $lastCommandFailed -with $command
 }
 
-function Show-ThemeColors {
+function Show-ThemeColors
+{
     ##############################
     #.SYNOPSIS
     # Show Current Theme Colors
@@ -71,7 +78,8 @@ function Show-ThemeColors {
     Write-Host -Object ''
 }
 
-function Show-ThemeSymbols {
+function Show-ThemeSymbols
+{
     ##############################
     #.SYNOPSIS
     # Show Current Theme Symbols
@@ -89,7 +97,8 @@ function Show-ThemeSymbols {
     Write-Host -Object ''
 }
 
-function Write-ColorPreview {
+function Write-ColorPreview
+{
     param
     (
         [string]
@@ -102,29 +111,76 @@ function Write-ColorPreview {
     Write-Host -Object (" {0,-15}" -f $color ) -BackgroundColor $color
 }
 
-function Show-Colors {
-    foreach ($color in [enum]::GetValues([ConsoleColor])) {
+function Show-Colors
+{
+    foreach ($color in [enum]::GetValues([ConsoleColor]))
+    {
         Write-ColorPreview -text "" -color $color
     }
 }
 
-function Set-Theme {
+function Get-Theme
+{
+    ##############################
+    #.SYNOPSIS
+    # Get available theme(s)
+    #.DESCRIPTION
+    # Shows available themes, as well as their type and location
+    # - Defaults (shipped with module)
+    # - User (user defined themes)
+    ##############################
+    [cmdletbinding()]
+    param()
+    $themes = @(
+        if (Test-Path -Path $script:UserThemesLocation -PathType Container)
+        {
+            Write-Verbose -Message "User themes location found: $($script:UserThemesLocation)"
+            Get-ChildItem -Path $script:UserThemesLocation -filter '*.psm1' | Sort-Object Name | ForEach-Object -Process {
+                [PSCustomObject]@{
+                    Name     = $_.BaseName
+                    Type     = 'User'
+                    Location = $_.FullName
+                }
+            }
+        }
+        else
+        {
+            Write-Verbose -Message "User themes location not found: $($script:UserThemesLocation)"
+        }
+        Get-ChildItem -Path $script:DefaultThemesLocation -Filter '*.psm1' | Sort-Object Name | ForEach-Object -Process {
+            [PSCustomObject]@{
+                Name     = $_.BaseName
+                Type     = 'Defaults'
+                Location = $_.FullName
+            }
+        }
+    )
+    $themes
+}
+
+function Set-Theme
+{
+    [cmdletbinding()]
     param(
-        [Parameter(Mandatory=$true)]
+        [Parameter(Mandatory = $true)]
         [string]
         $name
     )
-
-    if (Test-Path "$($sl.MyThemesLocation)\$($name).psm1") {
-        $sl.CurrentThemeLocation = "$($sl.MyThemesLocation)\$($name).psm1"
+    $ThemeFileName = $name + '.psm1'
+    if (Test-Path $(Join-Path -Path $script:UserThemesLocation -childPath $ThemeFileName))
+    {
+        $sl.CurrentThemeLocation = Join-Path -Path $script:UserThemesLocation -ChildPath $ThemeFileName
     }
-    elseif (Test-Path "$PSScriptRoot\Themes\$($name).psm1") {
-        $sl.CurrentThemeLocation = "$PSScriptRoot\Themes\$($name).psm1"
+    elseif (Test-Path $(Join-Path -Path $script:DefaultThemesLocation -ChildPath $ThemeFileName))
+    {
+        $sl.CurrentThemeLocation = $(Join-Path -Path $script:DefaultThemesLocation -ChildPath $ThemeFileName)
     }
-    elseif (Test-Path "$name") {
+    elseif (Test-Path "$name")
+    {
         $sl.CurrentThemeLocation = "$name"
     }
-    else {
+    else
+    {
         Write-Host ''
         Write-Warning "Theme $name not found. Available themes are:"
         Get-Theme
@@ -132,9 +188,30 @@ function Set-Theme {
 
     Set-Prompt
 }
+function Get-UserThemesLocation
+{
+    if ($null -eq $script:UserThemesLocation)
+    {
+        Join-Path -Path $([System.Environment]::GetFolderPath('UserProfile')) -ChildPath 'OMPThemes'
+    }
+    else
+    { $script:UserThemesLocation }
+}
 
+function Set-UserThemesLocation
+{
+    [cmdletbinding()]
+    param(
+        [parameter()]
+        [ValidateScript( { Test-Path -type Container -Path $_ })]
+        [string]$Path
+    )
+    $script:UserThemesLocation = $Path
+    $global:ThemeSettings.MyThemesLocation = $script:UserThemesLocation
+}
 # Helper function to create argument completion results
-function New-CompletionResult {
+function New-CompletionResult
+{
     param(
         [Parameter(Mandatory)]
         [string]$CompletionText,
@@ -146,38 +223,8 @@ function New-CompletionResult {
     New-Object System.Management.Automation.CompletionResult $CompletionText, $ListItemText, $CompletionResultType, $ToolTip
 }
 
-function Get-Theme {
-    ##############################
-    #.SYNOPSIS
-    # Get available theme(s)
-    #.DESCRIPTION
-    # Shows available themes, as well as their type and location
-    # - Defaults (shipped with module)
-    # - User (user defined themes)
-    ##############################
-    $themes = @()
-
-    if (Test-Path "$($ThemeSettings.MyThemesLocation)\*") {
-        Get-ChildItem -Path "$($ThemeSettings.MyThemesLocation)\*" -Include '*.psm1' -Exclude Tools.ps1 | ForEach-Object -Process {
-            $themes += [PSCustomObject]@{
-                Name = $_.BaseName
-                Type = "User"
-                Location = $_.FullName
-            }
-        }
-    }
-
-    Get-ChildItem -Path "$PSScriptRoot\Themes\*" -Include '*.psm1' -Exclude Tools.ps1 | Sort-Object Name | ForEach-Object -Process {
-        $themes += [PSCustomObject]@{
-                Name = $_.BaseName
-                Type = "Defaults"
-                Location = $_.FullName
-        }
-    }
-    $themes
-}
-
-function ThemeCompletion {
+function ThemeCompletion
+{
     param(
         $commandName,
         $parameterName,
@@ -187,15 +234,28 @@ function ThemeCompletion {
     )
     $themes = Get-Theme
     $themes |
-        Where-Object { $_.Name.ToLower().StartsWith($wordToComplete.ToLower()); } |
-        Select-Object -Unique -ExpandProperty Name |
-        ForEach-Object { New-CompletionResult -CompletionText $_ }
+    Where-Object { $_.Name.ToLower().StartsWith($wordToComplete.ToLower()); } |
+    Select-Object -Unique -ExpandProperty Name |
+    ForEach-Object { New-CompletionResult -CompletionText $_ }
+}
+
+function Set-DefaultUser
+{
+    param(
+        [string]$DefaultUser
+    )
+    $script:DefaultUser = $DefaultUser
 }
 
 Register-ArgumentCompleter `
-        -CommandName Set-Theme `
-        -ParameterName name `
-        -ScriptBlock $function:ThemeCompletion
+    -CommandName Set-Theme `
+    -ParameterName name `
+    -ScriptBlock $function:ThemeCompletion
+
+#Incorporated Scripts
+. "$PSScriptRoot\defaults.ps1"
+. "$PSScriptRoot\Helpers\PoshGit.ps1"
+. "$PSScriptRoot\Helpers\Prompt.ps1"
 
 $sl = $global:ThemeSettings #local settings
-$sl.ErrorCount = $global:error.Count
+#$sl.ErrorCount = $global:error.Count
