@@ -135,7 +135,7 @@ function Get-Theme
         if (Test-Path -Path $script:UserThemesLocation -PathType Container)
         {
             Write-Verbose -Message "User themes location found: $($script:UserThemesLocation)"
-            Get-ChildItem -Path $script:UserThemesLocation -filter '*.psm1' | Sort-Object Name | ForEach-Object -Process {
+            Get-ChildItem -Path $script:UserThemesLocation -Filter '*.psm1' | Sort-Object Name | ForEach-Object -Process {
                 [PSCustomObject]@{
                     Name     = $_.BaseName
                     Type     = 'User'
@@ -167,7 +167,7 @@ function Set-Theme
         $name
     )
     $ThemeFileName = $name + '.psm1'
-    if (Test-Path $(Join-Path -Path $script:UserThemesLocation -childPath $ThemeFileName))
+    if (Test-Path $(Join-Path -Path $script:UserThemesLocation -ChildPath $ThemeFileName))
     {
         $sl.CurrentThemeLocation = Join-Path -Path $script:UserThemesLocation -ChildPath $ThemeFileName
     }
