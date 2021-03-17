@@ -52,6 +52,7 @@
         'Set-Theme',
         'Get-UserThemesLocation',
         'Set-UserThemesLocation',
+        'Set-DefaultUser',
         'Get-VCSStatus',
         'Get-VcsInfo',
         'Get-FormattedRootLocation',
